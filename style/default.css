@@ -1,0 +1,17 @@
+body
+{
+   background-color: #111;
+   color: #ddd;
+   font-family: DejaVu Sans Mono, Lucida Console, Courier New, Monospace;
+}
+.content
+{
+   width:800px;
+   margin-left: auto;
+   margin-right: auto;
+}
+
+.intro
+{
+   text-align: center;
+}
