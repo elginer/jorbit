@@ -3,8 +3,9 @@
 <title>Orbit</title>
 <script type="text/javascript" src="js/orbit.js"></script>
 <script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="js/raphael.js"></script>
 <link rel="stylesheet" type="text/css" href="style/default.css"/>
-<script>
+<script type="text/javascript">
 $(document).ready(function()
 {
    orbit();
@@ -12,10 +13,22 @@ $(document).ready(function()
 </script>
 </head>
 <body>
-<h1 class="content intro">
+<h1 id="intro" class="content">
    Welcome to JOrbit version 0.0.1!
 </h1>
-<div id="orbit" class="content">
+<div id="info" class="content">
+   <span id="x">
+      x: 0
+   </span>
+   <span id="y">
+      y: 0
+   </span>
+   <span id="theta">
+      theta: 0
+   </span>
+   <span id="force">
+      force: 1
+   </span>
 </div>
 </body>
 </html>

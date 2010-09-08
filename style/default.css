@@ -4,14 +4,21 @@ body
    color: #ddd;
    font-family: DejaVu Sans Mono, Lucida Console, Courier New, Monospace;
 }
+
 .content
 {
    width:800px;
    margin-left: auto;
    margin-right: auto;
+   text-align: center;
 }
 
-.intro
+#intro
 {
-   text-align: center;
+   height: 30px;
+}
+
+#info
+{
+   height: 30px;
 }
