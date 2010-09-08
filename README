@@ -1,0 +1,20 @@
+JORBIT
+
+Copyright John Morrice 2010
+
+Contact spoon@killersmurf.com
+
+JOrbit is a clone of a game called Orbit which we had in primary school.  It was available for Acorns or BBC computers, or some such!
+
+JOrbit is my clone, written in javascript, with raphael and jQuery.
+
+Orbit was originally for two players, or you could play against an AI.  However, you could play against yourself, which is the only option available here.
+
+Instructions:
+
+Attempt to hit the target
+Move the mouse to aim
+Press the left mouse button to charge
+Watch the force meter!
+Let go to fire
+If you get an impossible level just refresh

@@ -1,3 +1,20 @@
+// Copyright 2010 John Morrice
+ 
+// This file is part of JOrbit.
+
+// JOrbit is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// JOrbit is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with JOrbit.  If not, see <http://www.gnu.org/licenses/>.
+
 // Something that can be collided with
 function Collider()
 {
@@ -9,6 +26,35 @@ function Collider()
       return distance <= Math.max(Math.abs(r), Math.abs(this.radius));
    }
 }
+
+// A target
+function Target(paper, x, y)
+{
+   this.x = x;
+   this.y = y;
+   this.radius = 20;
+   this.paper = paper;
+   // Draw the rings
+   this.draw = function()
+   {
+      var radius = this.radius;
+      this.red_circle(radius);
+      this.white_circle(2 * radius / 3);
+      this.red_circle(4 * radius / 9);
+      this.white_circle(8 * radius / 27);
+   }
+   this.red_circle = function(r)
+   {
+      this.paper.circle(this.x, this.y, r).attr({fill: "red", stroke: "red"});
+   }
+   this.white_circle = function(r)
+   {
+      this.paper.circle(this.x, this.y, r).attr({fill: "white", stroke: "white"});
+   }
+
+}
+
+Target.prototype = new Collider;
 
 // A crater
 function Crater(paper, x, y)
@@ -119,29 +165,72 @@ function Bullet(world, x, y, dx, dy, mag)
    this.original_force = new Force(dx, dy, mag);
    this.paper = world.paper;
    this.planets = world.planets;
+   this.target = world.target;
+   this.max_x = world.width;
+   this.min_x = 0;
+   this.min_y = 0;
+   this.max_y = world.height - 60;
    this.radius = 2;
    this.death = false;
    this.draw = function()
    {
+      $("#bulletx").html("bullet x: " + this.x);
+      $("#bullety").html("bullet y: " + this.y);
       this.paper.circle(this.x, this.y, this.radius).attr({fill: "white", stroke: "white"});
       var force = this.original_force;
       for (var i in this.planets)
       {
          force.combine(this.planets[i].gravity(this.x, this.y));
       }
-      // Check for collision
-      if (this.collision(force))
+      // Check for collision or out of range
+      if (this.collision(force) || this.x >= this.max_x || this.x <= this.min_x || this.y <= this.min_y || this.y >= this.max_y)
       {
          this.death = true;
       }
+      else if (this.win(force))
+      {
+         alert("Hooorah! You have won.");
+         window.location.reload(true);
+      }
       else
       {
-         this.x += force.dx;
-         this.y += force.dy;
+         if (!isNaN(force.dx) && !isNaN(force.dy))
+         {
+            this.x += force.dx;
+            this.y += force.dy;
+         }
       }
    }
+
+   // Does the bullet collide with a target
+   this.win = function(force)
+   {
+      var me = this;
+      return this.acollision(force, function(cx, cy)
+      {
+         return me.target.intersect(cx, cy, me.radius); 
+      });
+   }
+
    // Does the bullet collide with a planet
    this.collision = function(force)
+   {
+      var me = this;
+      return this.acollision(force, function(cx, cy)
+      {
+         for (var i in me.planets)
+         {
+            if (me.planets[i].intersect(cx, cy, me.radius))
+            {
+               me.planets[i].crater(cx, cy);
+               return true;
+            }
+         }
+         return false;
+      });
+   }
+   // Higher order collision detector
+   this.acollision = function(force, fun)
    {
       var
       cx = this.x,
@@ -150,13 +239,9 @@ function Bullet(world, x, y, dx, dy, mag)
       ey = this.y + force.dy;
       while (cx <= ex || cy <= ey)
       {
-         for (var i in this.planets)
+         if (fun(cx, cy))
          {
-            if (this.planets[i].intersect(cx, cy, this.radius))
-            {
-               this.planets[i].crater(cx, cy);
-               return true;
-            }
+            return true;
          }
          cx ++;
          cy ++;
@@ -308,13 +393,80 @@ function Gun(paper, launcher, x, y)
 function World(paper, width, height)
 {
    this.paper = paper;
-   this.planets = [new Planet(paper, width/2, height/2, 30)];
    var launcher = new Launcher(this);
    this.gun = new Gun(paper, launcher, 20, height / 2);
+   this.planets = [];
+   this.width = width;
+   this.height = height;
+
+   // Are any planets intersected?
+   this.intersects = function(x, y, r)
+   {
+      for (var j in this.planets)
+      {
+         if(this.planets[j].intersect(x, y, r * 1.5))
+         {
+            return true;
+         }
+      }
+      return false;
+   }
+   // Create the planets
+   this.create_planets = function()
+   {
+      // How many planets are (on average) required to fill the screen?
+      var
+      third_full = 10, // (width * height) / (3 * 30 * 30 * Math.PI),
+      i = 0;
+      while (i < third_full)
+      {
+         var
+         rx = (Math.random() * (width - 100)) + 50,
+         ry = (Math.random() * (height - 120)) + 60,
+         rr = Math.random() * 60;
+         
+         while (this.intersects(rx, ry, rr))
+         {
+            rx = (Math.random() * (width - 100)) + 50;
+            ry = (Math.random() * (height - 120)) + 60;
+            rr = Math.random() * 60;
+         }
+         var plan = new Planet(this.paper, rx, ry, rr);
+         this.planets.push(plan);
+         i++;
+      }
+   }
+
+   // Create the target
+   this.create_target = function()
+   {
+      var
+      tx = (Math.random() * (width / 2)) + width / 2,
+      ty = (Math.random() * (height - 120)) + 60;
+      while(this.intersects(tx, ty, 20))
+      {
+         tx = (Math.random() * (width / 2)) + width / 2;
+         ty = (Math.random() * (height - 120)) + 60;
+      }
+      this.target = new Target(this.paper, tx, ty);
+   }
+
+   this.create_planets();
+   this.create_target();
+
    // Draw the world!
    this.draw = function()
    {
       this.paper.clear();
+      for (var i in this.planets)
+      {
+         this.planets[i].draw();
+      }
+
+      this.gun.draw();
+
+      this.target.draw();
+
       if (this.bullet)
       {
          if (this.bullet.death)
@@ -326,11 +478,6 @@ function World(paper, width, height)
             this.bullet.draw();
          }
       }
-      for (var i in this.planets)
-      {
-         this.planets[i].draw();
-      }
-      this.gun.draw();
    }
    // Create a new bullet
    this.new_bullet = function(x, y, dx, dy, mforce)
@@ -347,7 +494,7 @@ function orbit()
    var
    width = screen.width,
    height = screen.height * 0.6,
-   paper = Raphael(startx, starty, width, height); // Raphael("orbit", width, height),
+   paper = Raphael(startx, starty, width, height); 
    world = new World(paper, width, height),
    // Timer sync variable
    drawn = true;
