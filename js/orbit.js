@@ -1,28 +1,98 @@
+// Something that can be collided with
+function Collider()
+{
+   // Does the circle at x,y with radius r collide with this?
+   this.intersect = function(x, y, r)
+   {
+      var distance = Math.sqrt(Math.pow(this.x - x, 2) + Math.pow(this.y - y, 2));
+      // alert("client radius: " + r + " planet radius: " + this.radius + " distance: " + distance + "\nplanet x: " + this.x + " planet y: " + this.y + " client x: " + x + " client y: " + y);
+      return distance <= Math.max(Math.abs(r), Math.abs(this.radius));
+   }
+}
+
+// A crater
+function Crater(paper, x, y)
+{
+   this.x = x;
+   this.y = y;
+   this.radius = 8;
+   this.paper = paper;
+   this.draw = function()
+   {
+      this.paper.circle(this.x, this.y, this.radius).attr({fill: "#111", stroke: "#111"});
+   }
+}
+
+Crater.prototype = new Collider;
+
 // A planet
 function Planet(paper, x, y, r)
 {
    this.x = x;
    this.y = y;
-   this.mass = r;
+   this.mass = Math.PI * r * r;
    this.radius = r;
+   this.craters = [];
+   this.paper = paper;
+
    // The gravitational force acting on the particle
    this.gravity = function(x,y)
    {
-      var 
-      distance_effect = ((this.x - x) ^ 2) + ((this.y - y) ^ 2);
-      mag = this.mass / distance_effect;
-      return new Force(this.x - x, this.y - y, mag);
+      if (this.mass > 0)
+      {
+         var 
+         distance_effect = Math.pow(this.x - x, 2) + Math.pow(this.y - y, 2);
+         mag = this.mass / distance_effect;
+         return new Force(this.x - x, this.y - y, mag);
+      }
+      else
+      {
+         return 0;
+      }
    }
+
+   // Draw the planet
    this.draw = function()
    {
-      paper.circle(this.x, this.y, this.radius).attr("fill", "green");
+      this.paper.circle(this.x, this.y, this.radius).attr({fill: "green", stroke: "green"});
+      for (var i in this.craters)
+      {
+         this.craters[i].draw();
+      }
+   }
+
+   // Make a crater
+   this.crater = function(x, y)
+   {
+      this.mass -= Math.PI * 10 * 10;
+      this.craters.push(new Crater(this.paper, x, y));
+   }
+
+   // Does the circle at x,y with radius r collide with this?
+   this.intersect = function(x, y, r)
+   {
+      var intersects = Planet.prototype.intersect.call(this, x, y, r);
+      if (intersects)
+      {
+         for (var i in this.craters)
+         {
+            if (this.craters[i].intersect(x, y, r))
+            {
+               return false;
+            }
+         }
+         return true;
+      }
+      return false;
    }
 }
+
+Planet.prototype = new Collider;
 
 // A force
 function Force(dx, dy, mag)
 {
-   if((dx != 0 || dy != 0) && mag != 0 && !isNaN(dx) && !isNaN(dy) && !isNaN(mag))
+   if((dx != 0 || dy != 0) && mag != 0)
    {
       var max = Math.max(Math.abs(dx), Math.abs(dy));
       dx = dx / max;
@@ -48,18 +118,50 @@ function Bullet(world, x, y, dx, dy, mag)
    this.y = y;
    this.original_force = new Force(dx, dy, mag);
    this.paper = world.paper;
+   this.planets = world.planets;
+   this.radius = 2;
+   this.death = false;
    this.draw = function()
    {
-      this.paper.circle(this.x, this.y, 2).attr("fill", "white");
-      var planets = world.planets;
+      this.paper.circle(this.x, this.y, this.radius).attr({fill: "white", stroke: "white"});
       var force = this.original_force;
-      for (var i in planets)
+      for (var i in this.planets)
       {
-         force.combine(planets[i].gravity(this.x, this.y));
+         force.combine(this.planets[i].gravity(this.x, this.y));
       }
-       
-      this.x += force.dx;
-      this.y += force.dy;
+      // Check for collision
+      if (this.collision(force))
+      {
+         this.death = true;
+      }
+      else
+      {
+         this.x += force.dx;
+         this.y += force.dy;
+      }
+   }
+   // Does the bullet collide with a planet
+   this.collision = function(force)
+   {
+      var
+      cx = this.x,
+      cy = this.y,
+      ex = this.x + force.dx,
+      ey = this.y + force.dy;
+      while (cx <= ex || cy <= ey)
+      {
+         for (var i in this.planets)
+         {
+            if (this.planets[i].intersect(cx, cy, this.radius))
+            {
+               this.planets[i].crater(cx, cy);
+               return true;
+            }
+         }
+         cx ++;
+         cy ++;
+      }
+      return false;
    }
 }
 
@@ -196,8 +298,8 @@ function Gun(paper, launcher, x, y)
       var turtle = [start, corner1, apex, corner2, end].join("");
       // var turtle = [start, apex].join("");
       var pistol = this.paper.path(turtle);
-      pistol.attr({stroke: "blue"});
-      this.paper.circle(ax, ay, 2).attr({stroke: "red"});
+      pistol.attr({fill: "blue", stroke: "blue"});
+      this.paper.circle(ax, ay, 2).attr({fill: "red", stroke: "red"});
    }
    
 }
@@ -213,15 +315,22 @@ function World(paper, width, height)
    this.draw = function()
    {
       this.paper.clear();
-      this.gun.draw();
       if (this.bullet)
       {
-         this.bullet.draw();
+         if (this.bullet.death)
+         {
+            this.bullet = false;
+         }
+         else
+         {
+            this.bullet.draw();
+         }
       }
       for (var i in this.planets)
       {
          this.planets[i].draw();
       }
+      this.gun.draw();
    }
    // Create a new bullet
    this.new_bullet = function(x, y, dx, dy, mforce)
