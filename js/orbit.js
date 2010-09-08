@@ -1,11 +1,44 @@
+// A planet
+function Planet(paper, x, y, r)
+{
+   this.x = x;
+   this.y = y;
+   this.mass = r;
+   this.radius = r;
+   // The gravitational force acting on the particle
+   this.gravity = function(x,y)
+   {
+      var 
+      distance_effect = ((this.x - x) ^ 2) + ((this.y - y) ^ 2);
+      mag = this.mass / distance_effect;
+      return new Force(this.x - x, this.y - y, mag);
+   }
+   this.draw = function()
+   {
+      paper.circle(this.x, this.y, this.radius).attr("fill", "green");
+   }
+}
+
 // A force
 function Force(dx, dy, mag)
 {
-   var max = Math.max(Math.abs(dx), Math.abs(dy));
-   dx = dx / max;
-   dy = dy / max;
-   this.dx = mag * dx;
-   this.dy = mag * dy;
+   if((dx != 0 || dy != 0) && mag != 0 && !isNaN(dx) && !isNaN(dy) && !isNaN(mag))
+   {
+      var max = Math.max(Math.abs(dx), Math.abs(dy));
+      dx = dx / max;
+      dy = dy / max;
+      this.dx = mag * dx;
+      this.dy = mag * dy;
+   }
+   else
+   {
+      this.dx = this.dy = 0;
+   }
+   this.combine = function(force)
+   {
+      this.dx += force.dx;
+      this.dy += force.dy;
+   }
 }
 
 // A bullet
@@ -18,12 +51,13 @@ function Bullet(world, x, y, dx, dy, mag)
    this.draw = function()
    {
       this.paper.circle(this.x, this.y, 2).attr("fill", "white");
-      planets = world.planets;
-      force = this.original_force;
+      var planets = world.planets;
+      var force = this.original_force;
       for (var i in planets)
       {
          force.combine(planets[i].gravity(this.x, this.y));
-      } 
+      }
+       
       this.x += force.dx;
       this.y += force.dy;
    }
@@ -172,7 +206,7 @@ function Gun(paper, launcher, x, y)
 function World(paper, width, height)
 {
    this.paper = paper;
-   this.planets = [];
+   this.planets = [new Planet(paper, width/2, height/2, 30)];
    var launcher = new Launcher(this);
    this.gun = new Gun(paper, launcher, 20, height / 2);
    // Draw the world!
@@ -183,6 +217,10 @@ function World(paper, width, height)
       if (this.bullet)
       {
          this.bullet.draw();
+      }
+      for (var i in this.planets)
+      {
+         this.planets[i].draw();
       }
    }
    // Create a new bullet
